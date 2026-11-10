@@ -4,6 +4,7 @@ const path = require('path');
 const querystring = require('querystring');
 
 const PORT = process.env.PORT || 1723;
+const HOST = process.env.HOST || '0.0.0.0';
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, 'data');
 const ENQUIRIES = path.join(DATA_DIR, 'enquiries.jsonl');
@@ -121,4 +122,4 @@ server.on('error', err => {
   process.exit(1);
 });
 
-server.listen(PORT, () => console.log(`Raunaq website running at http://localhost:${PORT}`));
+server.listen(PORT, HOST, () => console.log(`Raunaq website listening on ${HOST}:${PORT}`));
