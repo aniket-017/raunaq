@@ -1,0 +1,93 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  SSH_HOST: 154.53.42.27
+  SSH_USER: admin
+  REPO_URL: https://github.com/aniket-017/raunaq.git
+  APP_DIR: /home/admin/raunaq
+  PM2_NAME: raunaq-website
+  PORT: 1723
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Syntax check
+        run: |
+          node --check website/server.js
+          node --check website/main.js
+
+      - name: Smoke test server
+        working-directory: website
+        run: |
+          PORT=8080 node server.js &
+          sleep 2
+          curl -fsS -o /dev/null http://localhost:8080/
+          curl -fsS -o /dev/null http://localhost:8080/assets/frames/d/0001.webp
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/server.js)" = 404
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Pull changes and restart PM2
+        run: |
+          ssh -i ~/.ssh/id_deploy "$SSH_USER@$SSH_HOST" \
+            APP_DIR="$APP_DIR" PM2_NAME="$PM2_NAME" PORT="$PORT" \
+            REPO_URL="$REPO_URL" BRANCH="${{ github.ref_name }}" \
+            'bash -s' <<'EOF'
+          set -eo pipefail
+
+          export NVM_DIR="$HOME/.nvm"
+          if [ -s "$NVM_DIR/nvm.sh" ]; then . "$NVM_DIR/nvm.sh"; fi
+
+          if [ ! -d "$APP_DIR/.git" ]; then
+            echo "Cloning $REPO_URL into $APP_DIR"
+            git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
+          fi
+
+          cd "$APP_DIR"
+          git fetch --prune origin "$BRANCH"
+          git reset --hard "origin/$BRANCH"
+          echo "Deployed commit: $(git log -1 --format='%h %s')"
+
+          cd website
+          pm2 delete "$PM2_NAME" > /dev/null 2>&1 || true
+          PORT="$PORT" pm2 start server.js --name "$PM2_NAME"
+          pm2 save
+
+          for i in 1 2 3 4 5; do
+            if curl -fsS -o /dev/null "http://localhost:$PORT/"; then
+              echo "Site is up on port $PORT"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Site did not respond on port $PORT"
+          pm2 logs "$PM2_NAME" --lines 30 --nostream
+          exit 1
+          EOF
