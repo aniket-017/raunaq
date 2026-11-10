@@ -15,7 +15,7 @@ env:
   REPO_URL: https://github.com/aniket-017/raunaq.git
   APP_DIR: /home/admin/raunaq
   PM2_NAME: raunaq-website
-  PORT: 1723
+  PORT: 1724
 
 jobs:
   check:

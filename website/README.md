@@ -3,9 +3,9 @@
 Static site with no build step. Open `index.html` in a browser to preview, or host the whole folder anywhere.
 
 ## Publish
-Copy this whole folder to the server and run `server.js` (Node 18+, no `npm install` needed). It serves the site on port 1723 (override with `PORT`).
+Copy this whole folder to the server and run `server.js` (Node 18+, no `npm install` needed). It serves the site on port 1724 (override with `PORT`). Avoid 1723: browsers block it (`ERR_UNSAFE_PORT`).
 
-    node server.js                          # http://localhost:1723
+    node server.js                          # http://localhost:1724
     pm2 start server.js --name raunaq-website
     pm2 save && pm2 startup                 # restart on reboot
 

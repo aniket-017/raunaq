@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const querystring = require('querystring');
 
-const PORT = process.env.PORT || 1723;
+const PORT = process.env.PORT || 1724;
 const HOST = process.env.HOST || '0.0.0.0';
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, 'data');
